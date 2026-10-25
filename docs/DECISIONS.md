@@ -71,7 +71,7 @@
 **Consequences / to do:** [ ] Log the model, tokens and cost for every call; [ ] show this per package in the report.
 
 ### D-007: Three candidate patches on parallel branches, max 3 rounds
-**Date:** 2026-10-24 · **Status:** Accepted
+**Date:** 2026-10-24 · **Status:** Accepted (refined by D-024 and D-025)
 **Decision:** Super proposes 3 patches, each verified on its own sandbox branch. The winner is the smallest passing diff. If none pass, the remaining diff goes back to diagnosis, for up to 3 rounds.
 
 ### D-008: Human in the loop; no auto-filing; disclose AI help
@@ -160,10 +160,60 @@
 **Decision:** Log entries in `FEEDBACK_LOG.md` as they happen.
 
 ### D-020: Validate with real users
-**Date:** 2026-10-24 · **Status:** Proposed
+**Date:** 2026-10-24 · **Status:** Superseded by D-026
 **Context:** Judges said to talk to potential users. That strengthens Potential Impact.
 **Decision:** Post a short, honest note to `#reproducible-builds` (OFTC IRC) or the rb-general list, and/or contact a maintainer whose package we fixed. Ask whether the patch and explanation are useful. Quote replies in the write-up, with permission.
 **Consequences / to do:** [ ] Draft the message once we have 2–3 verified fixes (Tue 27).
+
+### D-023: Benchmark on still-unreproducible packages with recent notes
+**Date:** 2026-10-25 · **Status:** Accepted
+**Context:** The original protocol (D-017) built pre-fix versions from snapshot.debian.org for 60-75 packages. Old sources often fail with today's toolchain, and the builds would consume the week.
+**Decision:**
+- Diagnosis set: packages still unreproducible in unstable/amd64 whose cause note was added after the models' training cutoffs (Q-009). The note date comes from the git history of reproducible-notes, read only by the answer-key builder.
+- Their current source is pre-fix by definition. Evidence is the published diffoscope output plus our own build logs. Cause top-1/top-3 (and file localization where the note names a file) are scored against the note, with no builds.
+- Confirm each package is still unreproducible in our harness. Drop it otherwise and log why.
+- Verified fix rate is measured on a subsample of the same set (no answer key needed).
+- Known-fix packages (a human fix exists) are optional, only if time allows. "Same fix as human" is scored only on those.
+- Everything else in BENCHMARK_PROTOCOL stays: sealed key, frozen prompts, leakguard, Tavily off, networking off, one run, all failures published.
+**Supersedes:** leak path L3 and dataset construction in the protocol, Q-011, and the dataset part of D-009.
+**Consequences / to do:**
+- [ ] Build the answer key from the notes and their git dates (key builder only).
+- [ ] Find the models' training cutoffs (Q-009).
+
+### D-024: Agent loop with tools (refines D-007)
+**Date:** 2026-10-25 · **Status:** Accepted
+**Context:** The track is "agents that write, run, and test code". A fixed pipeline that writes three blind patches is weaker than a model that can inspect and test. Function calling works on Nano, Super and Ultra (2026-10-25).
+**Decision:**
+- Ultra gets read-only tools: read_file, grep_source, list_dir.
+- Super gets edit tools: apply_patch, show_diff, run_build (calls our harness).
+- Super may propose up to 3 candidate patches inside the loop.
+- Hard budget per package: max tool steps, tokens, minutes and builds. Running out is a logged failure with a reason.
+- The harness decides pass or fail. A model's claim of success counts for nothing.
+- Every tool call is logged. In benchmark mode networking is off and the answer-key path is denied.
+- The rules pre-pass (D-005) and the Nano condense step stay in front.
+**Consequences / to do:**
+- [ ] Define tool schemas and the budget config.
+- [ ] Log tool calls in the report.
+
+### D-025: Staged verification, lower Must, demo package criteria
+**Date:** 2026-10-25 · **Status:** Accepted
+**Context:** Three candidates over three rounds could mean up to 18 full builds per package, which a laptop can't sustain.
+**Decision:**
+- Screen candidates with the failing variation only and stop at the first pass. Run the full variation set only on the winning patch. Cache the unpatched baseline build. Run containers in parallel.
+- The Must is 5 verified fixes. 10 is a stretch. Always report attempted vs verified, and failures by reason.
+- Demo package: both builds under 2 minutes, a clear cause, a visible hash mismatch before the fix and a match after. Choose it at Gate 1 and pre-record the run as a fallback.
+- Receipts list the variations actually tested, including that user_group is excluded locally (D-022).
+**Consequences / to do:**
+- [ ] Implement staged verification in the harness.
+
+### D-026: Contact real users by Tue 27 (replaces D-020 as Proposed)
+**Date:** 2026-10-25 · **Status:** Accepted
+**Decision:**
+- Send 1-2 human-reviewed patches by Tue 27 Oct, with an Assisted-By disclosure (D-008), so a reply can arrive before 30 Oct.
+- Pick packages with no existing bug or patch.
+- Ask a short question on #reproducible-builds or rb-general: "is this patch and explanation useful?"
+- File only what we have reviewed and understood, under our own name.
+- Do not make the video depend on a reply.
 
 ---
 
@@ -181,7 +231,7 @@
 | Q-008 | Credit budget: target ≤ $35 of $50, leaving a reserve for the live demo through December 15 | Person B | Ongoing | Open |
 | Q-009 | Training-data cutoffs of Nemotron 3 Nano, Super and Ultra (from the model cards), to pick benchmark fixes newer than the cutoff | Person B | Sun 25 | Open |
 | Q-010 | Does Token Factory support structured JSON output, function calling, context caching and batch inference for the Nemotron models? | Person B | Sun 25 | Mostly resolved 2026-10-25: JSON mode, function calling and caching confirmed on Nano, Super and Ultra; batch untested |
-| Q-011 | Can we fetch pre-fix source versions from snapshot.debian.org and upload them into sandboxes? How long do they take to build? | Person A | Sun 25 | Open |
+| Q-011 | Can we fetch pre-fix source versions from snapshot.debian.org and upload them into sandboxes? How long do they take to build? | Person A | Sun 25 | Superseded by D-023 |
 | Q-012 | **Employer IP check.** The user works on a NetApp machine with NetApp OneDrive. The hackathon rules require the submission to be the entrant's original work, solely owned by them. Check NetApp's policy on side projects, open-source contributions and IP ownership. Preferably build on a personal machine or account. | You | Sat 24 | Resolved 2026-10-25: building on a personal laptop |
 | Q-013 | Where the project folder lives (Downloads vs. other) and the GitHub repo name. The Claude Desktop Filesystem connector couldn't reach Downloads. | You | Sat 24 | Open |
 | Q-014 | Arch (~11% unreproducible) and Nix (69–91%) figures from the original idea weren't re-verified. Check them before quoting, or drop them. | Person B | Thu 29 | Open |
@@ -196,3 +246,4 @@ When a question is resolved, move it into a decision entry (D-0NN) and mark it *
 - 2026-10-24: Added rubric optimization, sealed benchmark protocol, Token Factory feature policy, feedback log and user validation (D-016 to D-020, Q-009 to Q-011). New docs: `BENCHMARK_PROTOCOL.md`, `EXECUTION_GUARDRAILS.md`, `FEEDBACK_LOG.md`.
 - 2026-10-24: Handoff pack completed for the code session. Added `CLAUDE.md` (root), `TECH_REFERENCE.md`, `EXPLAINER.md`, `SOURCES.md` and `ORIGINAL_IDEA.md`. Added Q-012 to Q-014.
 - 2026-10-25: API smoke tests passed (Q-004 partly, Q-010 mostly resolved). Q-012 resolved. Repo pushed with MIT license and secret scan.
+- 2026-10-25: Added D-023 (benchmark on still-unreproducible packages), D-024 (agent loop with tools), D-025 (staged verification, Must lowered to 5), D-026 (contact real users by Tue 27). D-020 superseded.

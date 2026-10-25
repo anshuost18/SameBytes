@@ -71,6 +71,10 @@ We use a resource only when it supports the main story. Judges said "one thing d
 ## 3. Things that silently cost points: check continuously
 
 - [ ] Models and Token Factory are named in the README, the Devpost description, "Built With", **and spoken aloud** in the video.
+- [ ] Wording check (D-022): no "proves" or "secure" claims anywhere (README, video, Devpost, report). Say "verified under tested variations".
+- [ ] Gates (D-021): do not start the next gate until the previous one passes.
+- [ ] Agent budgets (D-024): every package has a hard cap on steps, tokens, minutes and builds. The harness decides pass or fail.
+- [ ] Real-user contact (D-026): 1-2 reviewed patches sent by Tue 27 with AI disclosure.
 - [ ] Every model call is logged with model, tokens, cost and latency. The report shows them.
 - [ ] No API keys in code or git history (`.env` gitignored; scan before every push).
 - [ ] License visible in the repo's About section.

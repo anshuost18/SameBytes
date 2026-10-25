@@ -17,7 +17,7 @@
 
 ## One sentence
 
-An AI agent that finds out why a software package builds differently every time, fixes the cause, and proves the fix by building it on two fresh, independent machines and showing byte-identical fingerprints (SHA-256 hashes).
+An AI agent that finds out why a software package builds differently every time, fixes the cause, and verifies the fix by building it on two fresh, independent machines under varied conditions and showing byte-identical fingerprints (SHA-256 hashes).
 
 ## The problem in plain words
 
@@ -74,10 +74,11 @@ No. The answer for judges has three parts:
 4. **Diagnose (Nemotron 3 Ultra + Tavily).**
    - Ultra names the root cause (mapped to one of Debian's ~430 issue types) and the responsible file and line.
    - Tavily checks whether upstream already fixed it and finds the right upstream tracker.
-5. **Patch (Nemotron 3 Super).** Write three candidate patches.
+5. **Patch (Nemotron 3 Super), as an agent loop (D-024).** Super works with tools (read file, search source, apply patch, run rebuild) under a hard per-package budget and proposes up to three candidate patches.
 6. **Verify (Token Factory Sandboxes).**
    - For each candidate, on its own branch, build twice in fresh VMs from the same image while varying time, path, user, locale, timezone, umask and CPU count.
    - Success means identical SHA-256 hashes, build-time tests passing, and the smallest diff winning.
+   - Staged (D-025): screen candidates with the failing variation only, stop at the first pass, then run the full variation set on the winner. The harness decides pass or fail, never the model.
    - If no candidate passes, the remaining diff goes back to step 4. Maximum 3 rounds.
 7. **Receipt + human review.** Output a patch, a plain-English explanation, a ready-to-file bug report, and a JSON verification receipt (image UUID, operation IDs, variations, hashes, test result). A human reviews everything. Nothing is auto-filed.
 
@@ -112,7 +113,7 @@ We'll measure the split with an ablation (for example, Nano-only vs. Ultra for d
 
 > Full rules: `BENCHMARK_PROTOCOL.md`. The answers are sealed and the agent can't reach them. It works from pre-fix source versions, has no Debian notes, no network, and no Tavily for the headline numbers. There's a dev/test split with prompts frozen before the run, a memorization probe, and a single run with all failures published.
 
-- **Known-cause set.** Use recent human fixes (May–October 2026) from the monthly reports and bugs.debian.org, which limits the chance the models have seen the answers in training. Run the agent on the pre-fix version, then score against the sealed key.
+- **Diagnosis set (D-023).** Packages still unreproducible whose cause note was added after the models' training cutoffs. Their current source is pre-fix, so score cause and file against the note with no builds. Verified fix rate is measured on a subsample. Known-fix packages are optional.
 - **Metrics:**
   - root-cause top-1 and top-3 accuracy;
   - file localization accuracy;
@@ -124,7 +125,8 @@ We'll measure the split with an ablation (for example, Nano-only vs. Ultra for d
 ## Success criteria for the hackathon
 
 - **Must:**
-  - at least 10 packages fixed end-to-end with byte-identical proof;
+  - Gate 1 passed by Mon 26: one package fixed end-to-end with a receipt (D-021);
+  - at least 5 packages fixed end-to-end with byte-identical verification (D-025; report attempted vs verified);
   - a benchmark table;
   - the report site;
   - a video under 3 minutes;
@@ -135,6 +137,7 @@ We'll measure the split with an ablation (for example, Nano-only vs. Ultra for d
   - clustering on the unexplained set;
   - 2–3 human-reviewed fixes submitted with AI-assistance disclosure.
 - **Stretch:**
+  - 10 packages fixed end-to-end;
   - a minimal GitHub Action that runs the two-build check on a sample project (makes the "guard" story concrete);
   - batch-API campaign.
 
@@ -142,6 +145,7 @@ We'll measure the split with an ablation (for example, Nano-only vs. Ultra for d
 
 - We won't fix every package; the success rate on unexplained cases will be modest.
 - Long-building packages are skipped.
+- Reproducibility makes tampering detectable through independent rebuilds. It does not show that software is secure or free of malicious code. Our receipts show identical output under the tested variations only (D-022). Locally the user_group variation is excluded.
 - A fix can be reproducible but not ideal, which is why a human reviews it.
 - The file-ordering variation may not run in Sandboxes (FUSE).
 - We focus on variation testing (tests.reproducible-builds.org), not every real-world rebuild failure (reproduce.debian.net).
@@ -167,8 +171,8 @@ We'll measure the split with an ablation (for example, Nano-only vs. Ultra for d
 |---|---|
 | Sat 24 | Accounts and credits; request Sandboxes access; package list; download evidence; test one sandbox build and `/dev/fuse` |
 | Sun 25 | Verification harness working (build twice, compare, tests) |
-| Mon 26 | Agent loop: rules, Nano, Ultra, Super ×3, branches, retry |
-| Tue 27 | Benchmark + ablation; Tavily; clustering and campaign on unexplained set |
+| Mon 26 | **Gate 1 first (one full fix with receipt)**, then the agent loop: rules, Nano, Ultra (read tools), Super (edit tools), staged verification |
+| Tue 27 | Gate 3 (about 5 fixes), then benchmark + ablation; Tavily; clustering and campaign only if Gate 3 is done; send 1-2 reviewed patches to users (D-026) |
 | Wed 28 | **Feature freeze.** Report site, README, limitations, human review of top fixes |
 | Thu 29 | Video, Devpost write-up, feedback; submit a draft |
 | Fri 30 | Buffer only; final submit well before 22:30 IST |
@@ -177,4 +181,4 @@ We'll measure the split with an ablation (for example, Nano-only vs. Ultra for d
 
 ## 30-second pitch
 
-"Build the same code twice and you usually get different files, because things like the time and folder name sneak in. That breaks the main way to check software wasn't tampered with: rebuild and compare fingerprints. Debian now blocks packages with this problem, and only a handful of volunteers can fix them. SameBytes reads the evidence, finds the cause, writes the fix, and proves it by building on two fresh Nebius sandboxes and showing identical fingerprints. Three NVIDIA Nemotron models share the work: Nano summarizes, Ultra diagnoses, Super writes the code."
+"Build the same code twice and you usually get different files, because things like the time and folder name sneak in. That breaks the main way to check software wasn't tampered with: rebuild and compare fingerprints. Debian now blocks packages with this problem, and only a handful of volunteers can fix them. SameBytes reads the evidence, finds the cause, writes the fix, and verifies it by building on two fresh Nebius sandboxes and showing identical fingerprints. Three NVIDIA Nemotron models share the work: Nano summarizes, Ultra diagnoses, Super writes the code."

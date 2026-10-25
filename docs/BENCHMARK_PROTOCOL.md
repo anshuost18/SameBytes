@@ -1,7 +1,8 @@
 # Benchmark protocol: keeping the answers hidden
 
 > **Why this file exists.** A benchmark is only worth something if the agent can't see the answer. Judges read rigor as a strength, so we design the test like an exam: sealed answer key, no peeking, one honest run, and every failure published.
-> Related decision: D-017 in `DECISIONS.md`. Last updated: 2026-10-24.
+> Related decision: D-017 in `DECISIONS.md`. Last updated: 2026-10-25.
+> **Update 2026-10-25 (D-023):** the diagnosis set is now packages still unreproducible with a recent cause note, not pre-fix versions from snapshot.debian.org. Leak path L3 and the dataset construction below are superseded where they conflict.
 
 ## 1. What we're measuring
 
@@ -31,6 +32,8 @@ For each benchmark package (one with a known human fix), we measure:
 | L10 | **Cherry-picking runs** | Run the test set **once** with frozen settings. If we must re-run (for example, after an infrastructure crash), we report every run, not the best. |
 
 ## 3. Dataset construction
+
+> **Replaced by D-023 (2026-10-25).** Diagnosis set: packages still unreproducible in unstable/amd64 whose cause note was added after the models' training cutoffs (date from the reproducible-notes git history, read only by the key builder). Evidence is the current published diffoscope output plus our own build logs. Score cause top-1/top-3 (and file where the note names one) with no builds. Confirm each package is still unreproducible in our harness. Measure verified fix rate on a subsample of the same set. Known-fix packages are optional, and only they can score same fix as human. The original plan below is kept for reference.
 
 1. **Collect candidates.** Gather packages fixed for reproducibility between **May and October 2026**:
    - sources: monthly reports, bugs.debian.org bugs tagged `reproducible-builds` with patches, `reproducible-notes` history;

@@ -9,7 +9,7 @@
 - Base URL as shown in the docs:
   - `https://api.tokenfactory.nebius.com/v1/`
   - Nebius' Nemotron page also shows the regional `https://api.tokenfactory.us-central1.nebius.com/v1/`
-  - **(verify)** which one our account uses.
+  - Confirmed 2026-10-25: our account works with the first (global) URL.
 - Fast flavor: append `-fast` to a model name for lower latency (pricing differs) **(verify per model)**.
 - Features listed in the docs:
   - function calling / tools;
@@ -18,10 +18,12 @@
   - context caching;
   - observability;
   - prompt presets.
-- Support for each of these on Nemotron models is open question Q-010.
+- Confirmed 2026-10-25 on Nano, Super and Ultra: JSON mode (`response_format={"type": "json_object"}`), function calling, and automatic prefix caching (4,224 of 4,520 prompt tokens cached on the second identical call). Batch inference untested.
+- Reasoning models return thinking in a separate `reasoning` field and the answer in `content` (which may start with a newline: strip it). With a low `max_tokens`, `content` is `None` because thinking uses the budget. Use `max_tokens` of 1500 or more.
+- Caching is prefix-based: put the static system prompt and catalogue first, and per-package evidence last.
 - **Fine-tuning:** no Nemotron models on the fine-tune list, so not used (D-006).
 
-### Nemotron models (IDs and prices as of 2026-10-20, from benchlm.ai) **(verify on the live model list)**
+### Nemotron models (IDs confirmed on the live model list 2026-10-25; prices from benchlm.ai, check the console)
 
 | Role | Model ID | $ per 1M input / output | Context |
 |---|---|---|---|

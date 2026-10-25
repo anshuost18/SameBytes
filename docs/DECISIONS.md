@@ -174,15 +174,15 @@
 | Q-001 | Token Factory activation needs a Visa or Mastercard (RuPay rejected). Get the account active and claim both $25 credits (code `NEBIUS-DEVPOST-GLOBAL26` + Builders Program) | You | Sat 24 | Open, **blocker** |
 | Q-002 | Sandboxes beta access granted? What's the pricing, and does it use our credits? | You | Sat 24 | Open, **blocker** for D-003 |
 | Q-003 | Inside Sandboxes: is `/dev/fuse` available? Root for the `user_group` and `domain_host` variations? Max execution timeout? | Person A | Sat 24 | Open |
-| Q-004 | Exact Nemotron model IDs on Token Factory; does batch inference support Nemotron? | Person B | Sat 24 | Open |
+| Q-004 | Exact Nemotron model IDs on Token Factory; does batch inference support Nemotron? | Person B | Sat 24 | Partly resolved 2026-10-25: model IDs and base URL confirmed; batch inference untested |
 | Q-005 | Final project name (SameBytes / Twinbuild / other) | Both | Wed 28 | Open |
 | Q-006 | Confirm team split (A = kitchen, B = brain) | Both | Sat 24 | Open |
 | Q-007 | Tavily API key (Builders Program credits) | You | Sat 24 | Open |
 | Q-008 | Credit budget: target ≤ $35 of $50, leaving a reserve for the live demo through December 15 | Person B | Ongoing | Open |
 | Q-009 | Training-data cutoffs of Nemotron 3 Nano, Super and Ultra (from the model cards), to pick benchmark fixes newer than the cutoff | Person B | Sun 25 | Open |
-| Q-010 | Does Token Factory support structured JSON output, function calling, context caching and batch inference for the Nemotron models? | Person B | Sun 25 | Open |
+| Q-010 | Does Token Factory support structured JSON output, function calling, context caching and batch inference for the Nemotron models? | Person B | Sun 25 | Mostly resolved 2026-10-25: JSON mode, function calling and caching confirmed on Nano, Super and Ultra; batch untested |
 | Q-011 | Can we fetch pre-fix source versions from snapshot.debian.org and upload them into sandboxes? How long do they take to build? | Person A | Sun 25 | Open |
-| Q-012 | **Employer IP check.** The user works on a NetApp machine with NetApp OneDrive. The hackathon rules require the submission to be the entrant's original work, solely owned by them. Check NetApp's policy on side projects, open-source contributions and IP ownership. Preferably build on a personal machine or account. | You | Sat 24 | Open, **important** |
+| Q-012 | **Employer IP check.** The user works on a NetApp machine with NetApp OneDrive. The hackathon rules require the submission to be the entrant's original work, solely owned by them. Check NetApp's policy on side projects, open-source contributions and IP ownership. Preferably build on a personal machine or account. | You | Sat 24 | Resolved 2026-10-25: building on a personal laptop |
 | Q-013 | Where the project folder lives (Downloads vs. other) and the GitHub repo name. The Claude Desktop Filesystem connector couldn't reach Downloads. | You | Sat 24 | Open |
 | Q-014 | Arch (~11% unreproducible) and Nix (69–91%) figures from the original idea weren't re-verified. Check them before quoting, or drop them. | Person B | Thu 29 | Open |
 
@@ -195,3 +195,4 @@ When a question is resolved, move it into a decision entry (D-0NN) and mark it *
 - 2026-10-24: Initial log created from research and planning discussion (D-001 to D-015, Q-001 to Q-008).
 - 2026-10-24: Added rubric optimization, sealed benchmark protocol, Token Factory feature policy, feedback log and user validation (D-016 to D-020, Q-009 to Q-011). New docs: `BENCHMARK_PROTOCOL.md`, `EXECUTION_GUARDRAILS.md`, `FEEDBACK_LOG.md`.
 - 2026-10-24: Handoff pack completed for the code session. Added `CLAUDE.md` (root), `TECH_REFERENCE.md`, `EXPLAINER.md`, `SOURCES.md` and `ORIGINAL_IDEA.md`. Added Q-012 to Q-014.
+- 2026-10-25: API smoke tests passed (Q-004 partly, Q-010 mostly resolved). Q-012 resolved. Repo pushed with MIT license and secret scan.

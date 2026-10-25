@@ -1,20 +1,22 @@
 # samebytes-builder: Debian unstable toolchain for twin builds (see docs/VERIFICATION_HARNESS.md)
 # Build:  docker build -t samebytes-builder:2026-10-25 -f docker/Dockerfile docker/
-# After the first pull, pin the base for the hackathon week:
-#   docker pull debian:unstable && docker image inspect debian:unstable --format '{{index .RepoDigests 0}}'
-#   then replace the FROM line with: FROM debian:unstable@sha256:<digest>
-FROM debian:unstable
+FROM debian:unstable@sha256:ac638695600796dac818dd0a79ef04147649eca20368daaf3add2ab7a0e08ae0
 
 ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8
 
-# deb-src is required for `apt-get source` and `apt-get build-dep`
-RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/debian.sources \
+# deb-src is required for `apt-get source` and `apt-get build-dep`.
+# apt fetches over plain HTTP got random 400s from one CDN edge, so switch to HTTPS after bootstrapping ca-certificates.
+RUN printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/99samebytes \
+ && sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/debian.sources \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && sed -i 's#http://#https://#g' /etc/apt/sources.list.d/debian.sources \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
       build-essential devscripts dpkg-dev fakeroot quilt equivs \
       faketime locales-all tzdata \
       diffoscope-minimal binutils file xz-utils zstd unzip \
-      ripgrep git python3 ca-certificates \
+      ripgrep git python3 \
       reprotest disorderfs \
  && rm -rf /var/lib/apt/lists/*
 

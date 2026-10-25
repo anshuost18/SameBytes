@@ -32,8 +32,11 @@
   - whether we'd use it again, and why
 
   Be specific. Ten $100 "Most Valuable Feedback" awards are given.
-- [ ] "Built With" tags include Nebius Token Factory, Nemotron 3 Nano/Super/Ultra, Tavily
+- [ ] "Built With" tags include Nebius Token Factory, the Nemotron models actually used (Ultra, Super / 3.5 Super, Lightning / Nano), Tavily, and Sandboxes if used
 - [ ] No API keys in the repo (`.env` is gitignored; check git history)
+- [ ] **Team members:** both people are added to the Devpost project as members (not just the submitter), and each has accepted the rules on `/rules`. Re-read the eligibility section once (age, residency, employer or sponsor restrictions) before submitting. *(added by the 2026-10-25 review)*
+- [ ] **Evidence for Stage 1 is one click away:** the README "For judges" block (and the `/judges` page, if built) shows the Token Factory call counts, the models used, and the `samebytes replay` command, worded as a replay of a recorded run.
+- [ ] The video shows the **blind** flagship run, or says in one sentence that Debian's own label was removed. The "we hid the label and it still found it" line is used **only** if the blind runs actually succeeded, with the real count.
 
 ## Judging (Stage 2): four equally weighted criteria, each scored 1–5
 
@@ -63,6 +66,8 @@
 - City awards are **not available** for India.
 
 ## Video plan (under 3:00)
+
+> **Superseded by the second-by-second script in `DEMO_AND_SUBMISSION.md` §2** (built around the flagship case). The table below is the original outline.
 
 | Time | Content |
 |---|---|

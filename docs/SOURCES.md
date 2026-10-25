@@ -44,6 +44,40 @@
 - RepFix, "Automated Patching for Unreproducible Builds", ICSE 2022 (64/116 fixed): https://conf.researchr.org/details/icse-2022/icse-2022-papers/66/Automated-Patching-for-Unreproducible-Builds
 - RepLoc, "Automated Localization for Unreproducible Builds", ICSE 2018 (671 packages): https://arxiv.org/abs/1803.06766
 
+## Added 2026-10-25 (build-plan research)
+
+### Flagship evidence
+- **Debian side:**
+  - Bug #1126092 (argparse-manpage reproducibility, patch, NMU 4.7-1.1): https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1126092
+  - Tracker (4.7-1.1 blocked: "Missing build on all"): https://tracker.debian.org/pkg/argparse-manpage
+  - 4.7-1.1 FTBFS log (Python 3.15 `_cached_theme`): https://tests.reproducible-builds.org/debian/rbuild/unstable/amd64/argparse-manpage_4.7-1.1.rbuild.log.gz
+  - autoflake diff: https://tests.reproducible-builds.org/debian/dbdtxt/unstable/amd64/autoflake_2.4.0-1.diffoscope.txt.gz
+  - hatchling diff: https://tests.reproducible-builds.org/debian/dbdtxt/unstable/amd64/hatchling_1.32.4-1.diffoscope.txt.gz
+- **Upstream:**
+  - `compat.py` (broken import): https://github.com/praiskup/argparse-manpage/blob/main/argparse_manpage/compat.py
+  - Compare v4.7…main (`05f8260`, `412123f` super-init fix; v4.8 release): https://github.com/praiskup/argparse-manpage/compare/v4.7...main
+  - PR #119 (introduced `fromtimestamp` + `_TZ_ARGS`): https://github.com/praiskup/argparse-manpage/pull/119
+- **Debian CI variations table:** https://tests.reproducible-builds.org/debian/index_variations.html
+
+### Data
+- Status JSON: https://tests.reproducible-builds.org/debian/reproducible.json
+- Notes repo: https://salsa.debian.org/reproducible-builds/reproducible-notes
+- reprotest man page (0.7.33): https://manpages.debian.org/unstable/reprotest/reprotest.1.en.html
+
+### Prior art and competitors (see `LANDSCAPE.md`)
+- **Google OSS Rebuild** (stabilizers, AI agent, SLSA): https://github.com/google/oss-rebuild
+- **RepTrace** (ASE 2019): search "RepTrace unreproducible builds ASE 2019"
+- **EvidenT** (ISSTA 2026): system-level package build repair (RISC-V), 53.88%
+- **RELAY:** arXiv 2610.27784 (LLM-derived deterministic rules, then agent escalation)
+- **dettrace:** https://github.com/dettrace/dettrace
+- **in-toto Statement v1:** https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md
+
+### Nebius / NVIDIA / Tavily
+- Token Factory model catalog with prices (cached input column): Token Factory console → Models
+- Nemotron 3.5 Super technical report (2026-10-21): from the NVIDIA Nemotron model card page
+- NeMo Agent Toolkit deprecation notice (Oct 2026): NVIDIA NeMo docs
+- Tavily API reference (search, extract): https://docs.tavily.com
+
 ## Rejected alternatives (why not kernel crash fixing)
 
 - syzbot's AI-assisted patch workflow (Google, LPC 2026; 9 patches merged by Aug 2026): https://lpc.events/event/20/contributions/2597/

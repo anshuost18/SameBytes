@@ -56,33 +56,33 @@ No:
 
 ```mermaid
 flowchart TD
-    A[1. Gather evidence<br/>published diff + build logs] --> B[2. Rules pre-pass<br/>catch easy cases]
-    B --> C[3. Condense<br/>Nemotron Nano]
-    C --> D[4. Diagnose<br/>Nemotron Ultra + Tavily]
-    D --> E[5. Write 3 patches<br/>Nemotron Super]
-    E --> F[6. Rebuild in sandboxes<br/>fresh VMs, varied settings]
-    F -->|hashes match + tests pass| G[7. Proof receipt + human review]
-    F -->|not identical: retry, max 3| D
+    A[1. Gather evidence<br/>Debian's published diff + logs] --> B[2. Rebuild twice ourselves<br/>confirm the difference]
+    B --> C[3. Rules<br/>spot the pattern, e.g. a date shifted by timezone]
+    C --> D[4. Investigate<br/>Nemotron Ultra runs experiments]
+    D --> E[5. Check what humans know<br/>Tavily: bugs, upstream fixes]
+    E --> F[6. Write the fix<br/>Nemotron Super, exact edits]
+    F --> G[7. Prove it<br/>two builds, varied settings, same fingerprint?]
+    G -->|yes + tests pass| H[8. Explain + receipt<br/>human reviews]
+    G -->|no: what's left becomes new evidence, max 3 rounds| D
 ```
 
-Walkthrough with an example package, `foo`:
+Walkthrough with our real flagship, `autoflake`:
 
-1. **Gather evidence.** The published evidence shows `foo.1.gz` differs.
-2. **Rules pre-pass.** A rule spots a different timestamp in the gzip header.
-3. **Condense.** Nano summarizes the huge diff: "only a 4-byte gzip timestamp differs."
-4. **Diagnose.** Ultra finds the cause: `debian/rules` runs `gzip` without `-n`. Tavily checks whether upstream already fixed this.
-5. **Write patches.** Super writes three candidate fixes:
-   - A: add `-n`;
-   - B: use Debian's `dh_compress`;
-   - C: set a fixed time.
-6. **Rebuild in sandboxes.** Each candidate is built twice in fresh sandboxes, with different time, folder, user and language. Fingerprints are compared, and the smallest passing fix wins.
-7. **Proof receipt and review.** We produce the patch, an explanation, a bug report draft, and a receipt. A human reviews before anything is sent.
+1. **Gather evidence.** Debian's diff shows only one real difference: the date in the man page is `2026-08-24` in one build and `2026-08-25` in the other.
+2. **Rebuild twice ourselves.** We confirm it: the two fingerprints differ on our machine too.
+3. **Rules.** A rule notices both dates sit next to the package's fixed "official date" (`SOURCE_DATE_EPOCH`). One day apart is exactly what you get when two builds run in timezones 26 hours apart, so the tool is using local time.
+4. **Investigate (Ultra).** The agent searches the build log for who wrote the man page, finds a shared tool (`argparse-manpage`), works out which Debian package ships it, and reads its code. Then it **runs an experiment**: the tool's date function under both test environments. Two different dates, so the cause is confirmed. The real bug: a line that tries to load "UTC" always fails silently, so the tool falls back to local time.
+5. **Check what humans know (Tavily).** Debian already had a patch, but it's stuck, because that version doesn't build on the newest Python. Upstream is still broken.
+6. **Write the fix (Super).** A two-line change to the tool, plus the small fix for the newer Python.
+7. **Prove it.** Build the fixed tool, then build autoflake twice with it: identical fingerprints, tests pass. Repeat for all 13 packages that use the tool.
+8. **Explain and receipt.** A plain-language explanation, a receipt with all the hashes, and drafts for Debian and upstream. A human reviews and sends.
 
 ## Model roles
 
-- **Nano:** the fast, cheap intern who skims a 500-page report and hands you the one page that matters.
-- **Ultra:** the senior expert who works out the root cause.
-- **Super:** the strong programmer with a huge memory, who writes the fix.
+- **Ultra:** the senior detective. Reads clues, runs experiments, names the culprit.
+- **Super:** the careful programmer who writes the smallest correct fix.
+- **Lightning / Nano:** the fast assistants. They write search queries, summarize, and sort a thousand cases into groups.
+- **The twin build:** the judge. It doesn't care what any model says; the fingerprints match or they don't.
 
 ## Glossary
 
@@ -105,6 +105,10 @@ Walkthrough with an example package, `foo`:
 - **Nemotron:** NVIDIA's family of open AI models.
 - **Tavily:** a search engine built for AI agents (owned by Nebius).
 
-## 30-second pitch
+- **Toolchain package:** a tool other packages use while building (like argparse-manpage, which writes man pages). One bug in it can break many packages.
+- **Probe:** our agent's experiment. It runs one command under both test environments and compares the outputs, in seconds.
+- **Receipt:** a JSON record of what was built, where, how, and the resulting fingerprints.
+
+## 30-second pitch (original; the current version is in `PROJECT_BRIEF.md`)
 
 "Build the same code twice and you usually get different files, because things like the time and folder name sneak in. That breaks the main way to check software wasn't tampered with. Debian now blocks packages with this problem, and only a handful of volunteers can fix them. SameBytes reads the evidence, finds the cause, writes the fix, and proves it by building on two fresh Nebius sandboxes and showing identical fingerprints. NVIDIA Nemotron Nano summarizes, Ultra diagnoses, and Super writes the code."

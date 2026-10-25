@@ -1,0 +1,68 @@
+#!/bin/bash
+# sb-build ROLE   — one variation build of /src into /out (run as root inside the env image)
+# Variations mirror tests.reproducible-builds.org; see docs/VERIFICATION_HARNESS.md §3.1.
+set -euo pipefail
+ROLE="${1:?usage: sb-build A|B}"
+PROFILE="${SB_PROFILE:-debian-ci}"
+PKGDIR="${SB_PKGDIR:?set SB_PKGDIR, e.g. autoflake-2.4.0}"
+N="${SB_PARALLEL:-4}"
+# Debian CI runs the second build 398 days + 6h23m ahead (index_variations.html, checked 2026-10-25).
+# 398*86400 + 6*3600 + 23*60 = 34410180 seconds. Verify with: faketime -f +34410180 date  (doctor check).
+TIME_OFFSET="${SB_TIME_OFFSET:-+34410180}"
+OUT=/out; BP=/build/reproducible-path
+mkdir -p "$BP" "$OUT"
+
+A_ENV=(TZ=/usr/share/zoneinfo/Etc/GMT+12 LANG=C.UTF-8 LANGUAGE=en_US:en
+       PATH=/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:
+       HOME=/nonexistent/first-build USER=pbuilder1 LOGNAME=pbuilder1
+       DEB_BUILD_OPTIONS="parallel=$N")
+B_ENV=(TZ=/usr/share/zoneinfo/Etc/GMT-14 LANG=et_EE.UTF-8 LANGUAGE=et_EE:et LC_ALL=et_EE.UTF-8
+       PATH=/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/i/capture/the/path
+       "CAPTURE_ENVIRONMENT=I capture the environment"
+       HOME=/nonexistent/second-build USER=pbuilder2 LOGNAME=pbuilder2
+       DEB_BUILD_OPTIONS="nocheck parallel=$(( N > 1 ? N - 1 : 1 ))"
+       FAKETIME_DONT_FAKE_MONOTONIC=1)
+
+if [ "$ROLE" = A ] || [ "$PROFILE" = none ]; then
+  ID=1111; NICE=10; UM=0022; SH=dash; ENVV=("${A_ENV[@]}"); TW=()
+else
+  ID=2222; NICE=11; UM=0002; SH=bash; ENVV=("${B_ENV[@]}"); TW=(faketime -f "$TIME_OFFSET")
+  [ "${SB_DISABLE_TIME:-0}" = 1 ] && TW=()
+  [ "${SB_VARY_KERNEL:-0}" = 1 ] && TW=(setarch x86_64 --uname-2.6 "${TW[@]}")
+fi
+
+ln -sf "$SH" /bin/sh
+cp -a /src "$BP/$PKGDIR"
+chown -R "$ID:$ID" "$BP"
+
+start=$(date +%s)
+set +e
+setpriv --reuid="$ID" --regid="$ID" --init-groups \
+  env -i "${ENVV[@]}" nice -n "$NICE" \
+  bash -c 'umask "$0"; cd "$1"; shift 2; exec "$@"' "$UM" "$BP/$PKGDIR" _ \
+  "${TW[@]}" dpkg-buildpackage -b --no-sign > "$OUT/build.log" 2>&1
+rc=$?
+set -e
+end=$(date +%s)
+
+cd "$BP"
+cp -a ./*.deb ./*.buildinfo ./*.changes "$OUT"/ 2>/dev/null || true
+cd "$OUT"
+if ls ./*.deb >/dev/null 2>&1; then
+  sha256sum ./*.deb | sed 's#  \./#  #' > sha256.txt
+  for d in ./*.deb; do dpkg-deb -c "$d" | awk '{print $6}' | sort > "${d#./}.files"; done
+fi
+# tests_ran is a heuristic (dh_auto_test appears in every debhelper log, even with no tests).
+# The real acceptance signal is: build A exits 0 with tests enabled (nocheck absent) and the
+# policy guard found no test-weakening. test_hint keeps the last summary-looking line for the receipt.
+tests=$([ "$ROLE" = A ] && grep -q 'dh_auto_test' build.log && echo true || echo false)
+case " ${ENVV[*]} " in *nocheck*) tests_enabled=false ;; *) tests_enabled=true ;; esac
+hint=$(grep -E 'passed|Ran [0-9]+ tests?|^OK$|PASS:|tests? run' build.log | tail -1 | cut -c1-120 || true)
+# Log lines can hold quotes, tabs or ANSI escapes, so let json.dumps do the escaping.
+SB_ROLE="$ROLE" SB_RC="$rc" SB_WALL="$((end-start))" SB_TESTS="$tests" SB_TE="$tests_enabled" SB_HINT="$hint" \
+python3 -c 'import json, os; e = os.environ; print(json.dumps({
+  "role": e["SB_ROLE"], "exit_code": int(e["SB_RC"]), "wall_seconds": int(e["SB_WALL"]),
+  "tests_ran": e["SB_TESTS"] == "true", "tests_enabled": e["SB_TE"] == "true",
+  "test_hint": e["SB_HINT"]}))' > meta.json
+chown -R "${SB_HOST_UID:-0}:${SB_HOST_UID:-0}" "$OUT"
+exit "$rc"

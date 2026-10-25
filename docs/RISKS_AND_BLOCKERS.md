@@ -1,0 +1,45 @@
+# Risks and blockers playbook
+
+> For each risk: how you'll notice it, what to do first, the fallback, and when to decide. When a risk fires, add a `Q-0NN` row in `DECISIONS.md` and follow the fallback; don't improvise under pressure.
+> **The 90-minute rule:** stuck for 90 minutes means write it down here and take the fallback.
+
+| ID | Risk | Signal | Mitigation (do first) | Fallback | Decide by | Owner |
+|---|---|---|---|---|---|---|
+| R1 | **No Sandboxes access** | No reply to the email or Discord by Tue | Email on Day 0 (T08); Docker backend first (D-022) | Ship Docker only. The README says "Sandboxes backend designed (interface plus probe op), pending beta access". Feedback entry about the access process. | Tue 27, 22:00 | You / A |
+| R2 | Flagship doesn't reproduce locally | T03 shows identical hashes | §11 of `VERIFICATION_HARNESS.md` (check TZ, locale, tzdata) | Switch the demo package to `psutils` or `osc` (same cluster, same fix) | Sun 25, 23:30 | A |
+| R3 | Toolchain fix doesn't make the hashes identical | T04 still differs | Look at the remaining diff: is it a second cause (e.g. `.pyc`, egg-info timestamps)? | Treat the remaining diff as a second agent round (that's a good demo too). If it's unfixable, pick another cluster member. | Mon 26 | A |
+| R4 | Laptop builds too slow | One twin build takes over 20 minutes | `.wslconfig` (`SETUP.md` §2); A and B in parallel; repo on ext4; `SB_PARALLEL` = cores/2 | Fewer Track B packages (minimum 3); campaign limited to the 9 fastest members; run overnight | Tue 27 | A |
+| R5 | faketime breaks builds | B fails with clock errors or hangs | `FAKETIME_DONT_FAKE_MONOTONIC=1` (already set) | `SB_DISABLE_TIME=1` for that package, grade `ci-minus-time`, shown honestly | Per package | A |
+| R6 | Token Factory ignores reasoning controls | T06 shows no change | Use `max_tokens` headroom; parse `reasoning` separately | Thinking always on; cost estimate ×1.5; fine within budget | Sun 25 | B |
+| R7 | Malformed tool calls or JSON from Nemotron | Ledger format slips > 10% | Fallback parser, schema-error feedback, `force_nonempty_content` | Switch that role's model per the bake-off (e.g. 3.5 Super for the patcher); for JSON-only roles use `response_format` strict | Tue 27 | B |
+| R8 | Rate limits (429) | Bursts during the benchmark | Semaphore of 4; honour `Retry-After`; Batch API for the map | Run benchmark configs sequentially overnight | — | B |
+| R9 | Budget overrun | `samebytes cost` shows > $12 before Track A starts (Wed) | Hard cap $30; dev runs on the fast model; cached prefix | Drop ablation configs (keep Ultra and one cheap model); skip the product-mode reruns | Wed 28 | B |
+| R10 | Huge diffoscope evidence | Download over 20 MB | Cap plus the text fallback | Skip the package (`SKIPPED: evidence too large`) | — | B |
+| R11 | **Humans fix argparse-manpage before Oct 30** | Tracker shows 4.7-1.2 or newer, or the cluster turns green on CI | Re-check on Thu morning. Our receipts are dated, and the evidence is archived in `runs/` | Story becomes "the agent independently found and verified the same fix; here's the proof". Still strong. Mention the date. | Thu 29 | B |
+| R12 | Integration pain between A and B | Interface drift, broken mains | Frozen interfaces (`ARCHITECTURE.md` §4–5), FakeBackend fixtures, a daily sync at 22:00 | Freeze features; pair on the integration for 2 hours | Daily | Both |
+| R13 | WSL/Windows quirks | CRLF in scripts, permission errors, slow I/O | `.gitattributes` LF, repo in ext4, `core.autocrlf=false` | Run everything inside WSL only; never edit from Windows paths | Sun 25 | A |
+| R14 | Packaging time underestimated | Video not started by Thu noon | Feature freeze Wed 23:59; script pre-written (`DEMO_AND_SUBMISSION.md` §2) | Record the voice-over over pre-made screen captures; skip fancy editing | Thu 29 | Both |
+| R15 | Debian community pushback on AI patches | Negative replies | Few submissions, human-reviewed, disclosed (D-008); lead with the upstream fix and credit the existing NMU | Don't argue; thank them and quote nothing without permission | — | You |
+| R16 | Employer IP | — | Personal laptop and accounts only; no NetApp devices, keys, Teams or OneDrive for code | — | Done | You |
+| R17 | Tavily key or credits missing | Scout raises "no key" | Builders Program credits; scout optional by design | Skip S3; drop the Tavily prize claim; the agent still works | Mon 26 | You |
+| R18 | Debian servers slow or down | Fetch timeouts | Cache all candidate evidence on Day 1 (`samebytes fetch --batch`) | Use cached evidence; the site shows "fetched at" dates | Mon 26 | B |
+| R19 | Demo not reachable Dec 1–15 | — | Static GitHub Pages site; receipts are static JSON; no server | — | Thu 29 | A |
+| R20 | Version drift (new upload of a candidate) | `VERSION_GONE` at prepare | Re-fetch current CI evidence for the new version | Use snapshot (`DATA_SOURCES.md` §5) or drop the package | Per package | A |
+| R21 | Python/argparse change breaks the toolchain build | The patched argparse-manpage fails on Python 3.15 | Backport `05f8260`/`412123f` (`FLAGSHIP_CASE.md` §5.2) | Build with `--no-check` for the toolchain only and note it; or vendor upstream v4.8 plus our fix as `4.8-0+samebytes1` | Tue 27 | A |
+| R22 | The benchmark's ground truth is noisy | Many "wrong" answers that look right | Report family@1 and the version-matched subset; expert spot-check of 10 items | Present Track A as indicative, with Track B as the objective proof | Wed 28 | B |
+| R23 | **Catalogue label names the answer** (`timezone_variant_in_argparse_manpage` on all 13 packages) so the flagship looks scripted | A reviewer reads the investigator prompt | Blind run is the headline; redaction in all three catalogue paths, blind leakguard, no-tools memory probe published alongside; both runs published (D-031) | If the blind run fails, say so, keep the product run, and show the failed transcript; do not hide it | Mon 26 (T23b) | B |
+| R24 | **Python 3.15 trap:** a patched argparse-manpage `.deb` can't build (the same `_cached_theme` failure that blocks Debian's 4.7-1.1) and stalls the campaign | `build_toolchain_deb` fails | Overlay injection is the default (D-034); the `.deb` is a separate, non-blocking deliverable | Report "toolchain package build failed on 3.15 for an unrelated reason" with the backport diff | Tue 27 | A |
+| R25 | GitHub Actions limits or queueing (runner disk about 14 GB, `ghcr.io` permission, artifact retention) | `verify.yml` job fails at `prepare_env` or push, or A and B report different env digests | Pages/Actions settings in `SETUP.md` §7b; skip packages with huge build-dep sets; copy receipts to `published/` immediately | Run the campaign on the laptop; Actions run only for the flagship pair | Wed 28 | A |
+| R26 | **Kernel not varied** in our builds although CI varies it on amd64, so a kernel-string leak reproduces on CI but not locally | Baseline `NOT_REPRODUCED` for a CI-FTBR package whose diff shows a `6.12…-amd64` string | `KERNEL_STRING` rule flags it from CI evidence; status `NOT_REPRODUCED(kernel-only)`; never claim a fix | Skip that package and list it under limitations | Per package | A |
+| R27 | **Archive drift:** CI built on Oct 6–19 against then-current unstable; our `apt-get build-dep` uses today's archive | Baseline differs from the CI diff, or `VERSION_GONE` | The local baseline twin build is the arbiter; record the apt environment fingerprint in the receipt | Use `debsnap` for the exact version (`DATA_SOURCES.md` §5) | Per package | A |
+| R28 | **Scope overrun:** the Musts alone take about 52 of the 40–60 available hours (`BUILD_PLAN.md` §2.1) | Any Day 0 or Day 1 gate slips by half a day | D-037 trim; Shoulds strictly in priority order; B absorbs shared work so A can finish M6–M7 | Drop S1 and S8 at once; shrink M7 to the members already built and M9 to landing page plus one card | Daily 22:00 sync | Both |
+
+## Known limitations (paste into the README; update as you learn)
+- The default profile mirrors Debian CI **except the kernel**: CI varies it on amd64 (`deb13-amd64` vs `deb13-cloud-amd64`), but a container shares the host kernel. Build path and file order are not varied by CI today; the optional strict profile varies them.
+- The time variation uses libfaketime in Docker, not a real future clock. A few packages need it disabled, and their grade says so.
+- Track A diagnosis uses Debian volunteers' tags as ground truth, which can be stale or coarse.
+- Fixes are proven reproducible under the test variations. They're not yet checked against reproduce.debian.net's real-archive rebuilds.
+- Long builds (over 10 minutes on CI) are skipped by default.
+- Nothing is filed automatically; humans review and submit.
+- The flagship cause was already labelled by Debian volunteers (`timezone_variant_in_argparse_manpage`) and a Debian patch existed. We say so; our contribution is the exact line, a correct fix, proof across all dependents, and the unlabelled 14th package.
+- Archive drift: our builds use today's unstable, CI used the archive of its build day. The local baseline decides whether a case is reproduced.

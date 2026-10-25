@@ -1,7 +1,7 @@
 # Execution guardrails
 
 > **Purpose.** Make sure every hour of building earns points with the judges, and that the small things that matter don't slip. Read this at the start of each session; run the end-of-session ritual before stopping.
-> Related decisions: D-016, D-017, D-018, D-019, D-020 in `DECISIONS.md`. Last updated: 2026-10-24.
+> Related decisions: D-016 to D-030 in `DECISIONS.md`. Last updated: 2026-10-25. The day-by-day plan and gates are in `BUILD_PLAN.md`; the "above and beyond" checklist is in `DEMO_AND_SUBMISSION.md` §8.
 
 ## 1. What the judges score, and the features that earn each point
 
@@ -9,6 +9,7 @@ Four criteria, equally weighted, each scored 1–5. Technological Implementation
 
 ### Technological Implementation (tie-breaker)
 *"How well is it built, and how effectively does it use Token Factory and Nemotron?"*
+- **New (Oct 25):** the agent runs experiments (`probe`) and attributes causes to toolchain packages (D-023, D-024); the flagship shows this end to end (D-021).
 - Token Factory used for **both** thinking (inference) **and** doing (Sandboxes). This is the core differentiator.
 - Each Nemotron model has one clear, measured job, backed by an ablation table showing the split pays off.
 - Sandbox features used for real reasons:
@@ -18,6 +19,7 @@ Four criteria, equally weighted, each scored 1–5. Technological Implementation
   - `networking.enabled=false` gives hermetic builds and a benchmark that can't leak.
 - Reliability: retries, timeouts, caching, logs for every call and operation.
 - Clean repo with tests for the leakguard, the scorer and the rules.
+- **(Review, D-031 to D-036)** Independent builders on public GitHub runners (and Sandboxes if granted), a blind flagship run, keyless replay of a recorded run, and a README "For judges" table that links every claim (`/judges` page if time allows, D-037).
 
 ### Design
 *"A complete, coherent product, not a proof of concept."*
@@ -56,25 +58,21 @@ We use a resource only when it supports the main story. Judges said "one thing d
 
 | Resource | Use | Status |
 |---|---|---|
-| Inference API (Nemotron 3 Nano / Super / Ultra) | The three agent roles | Core |
-| **Sandboxes** | Independent builds, patch branches, hermetic verification, receipts | Core (beta access: Q-002) |
-| Structured output / JSON | Diagnosis returns a strict schema: cause type, file, line, confidence, evidence | Use; check support for Nemotron (Q-010) |
-| Function calling / tools | Agent tools: read file, grep source, run a build, query the catalogue | Use if Nemotron supports it well; otherwise JSON actions |
-| Context caching | The long static prefix (system prompt + ~430-type catalogue) is reused on every diagnosis, which cuts cost | Use if it applies automatically; mention in feedback |
-| `-fast` model flavor | Nano in the interactive demo, for snappy responses | Optional, check cost |
-| Batch inference | Campaign mode: Nano condenses hundreds of diffs cheaply | Should, if it supports Nemotron (Q-010) |
-| Inference observability | Screenshots for the video and README to show real usage | Nice to have |
-| **Tavily** | Upstream-fix lookup; Best Use of Tavily bonus ($3k) | Should; disabled in benchmark mode |
+| Inference API (Nemotron 3 Ultra, 3 Super / 3.5 Super VL, 3.5 Lightning / 3 Nano) | Investigator, patcher, critic, fast roles (`AGENT_DESIGN.md` §2) | Core |
+| **Sandboxes** | Independent VMs per build, candidate branches, offline verification, image UUIDs in receipts | Accelerator behind the same backend interface (D-022); Docker is primary until access is granted |
+| Structured output (`json_schema` strict) | Critic, scout and condenser outputs; diagnosis validated against the same schema | Use (json_object confirmed; strict schema checked in T06) |
+| Function calling | All investigator and patcher tools; `submit_diagnosis` / `submit_candidate` | Use (confirmed Oct 25) |
+| Prefix caching | Static prefix (prompt + 441-type catalogue + tool schemas) is cached on every call; savings shown on the site | Use (confirmed: 4,224/4,520 cached) |
+| Batch inference | Signature map over all ~1,140 FTBR packages (D-027) | Should; test the request shape first (Q-017) |
+| Inference observability | Screenshots for the video and README | Nice to have |
+| **Tavily** | Scout: Debian bugs, upstream fixes and the regression commit; **changes the plan** (`AGENT_DESIGN.md` §8). Best Use of Tavily ($3k) | Should; disabled in benchmark mode |
+| `-fast` model flavor | Not planned | Not used |
 | Fine-tuning | Not used: no Nemotron models are on the fine-tune list | Rejected (D-006) |
 | Serverless Endpoints/Jobs, NemoClaw, OpenShell, Hermes | Not needed for this track's story | Not used (avoid stack padding) |
 
 ## 3. Things that silently cost points: check continuously
 
 - [ ] Models and Token Factory are named in the README, the Devpost description, "Built With", **and spoken aloud** in the video.
-- [ ] Wording check (D-022): no "proves" or "secure" claims anywhere (README, video, Devpost, report). Say "verified under tested variations".
-- [ ] Gates (D-021): do not start the next gate until the previous one passes.
-- [ ] Agent budgets (D-024): every package has a hard cap on steps, tokens, minutes and builds. The harness decides pass or fail.
-- [ ] Real-user contact (D-026): 1-2 reviewed patches sent by Tue 27 with AI disclosure.
 - [ ] Every model call is logged with model, tokens, cost and latency. The report shows them.
 - [ ] No API keys in code or git history (`.env` gitignored; scan before every push).
 - [ ] License visible in the repo's About section.

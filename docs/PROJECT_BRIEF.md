@@ -1,184 +1,107 @@
 # SameBytes: project brief
 
-> Working name, not final (see open question Q-005 in `DECISIONS.md`).
-> Last updated: 2026-10-24. This file describes **what we're building and why**.
->
-> Other docs:
-> - `DECISIONS.md`: every choice, open question and blocker
-> - `EXECUTION_GUARDRAILS.md`: how each feature earns judging points, plus session rituals
-> - `BENCHMARK_PROTOCOL.md`: how the answers stay hidden during testing
-> - `HACKATHON_CHECKLIST.md`: rules and submission checklist
-> - `FEEDBACK_LOG.md`: running notes for the required feedback section
-> - `TECH_REFERENCE.md`: endpoints, model IDs, SDKs, data-source URLs, tools, costs
-> - `EXPLAINER.md`: plain-language explanation and glossary
-> - `SOURCES.md`: citations for the write-up
-> - `ORIGINAL_IDEA.md`: the first pitch, for reference
-> - `../CLAUDE.md`: handoff and working agreements for coding sessions
+> **What** we're building and **why**. The **how** is in `BUILD_PLAN.md` (plan), `ARCHITECTURE.md`, `AGENT_DESIGN.md` and `VERIFICATION_HARNESS.md`. Every choice is logged in `DECISIONS.md`.
+> Last updated: 2026-10-25 (after the build-plan research pass).
 
 ## One sentence
-
-An AI agent that finds out why a software package builds differently every time, fixes the cause, and verifies the fix by building it on two fresh, independent machines under varied conditions and showing byte-identical fingerprints (SHA-256 hashes).
+An AI agent that finds out why a software package builds differently every time, fixes the cause in the source, and proves the fix by building it twice in independent, deliberately different environments and showing byte-identical fingerprints (SHA-256).
 
 ## The problem in plain words
+- **Source code is the recipe; the binary is the cake.** People download cakes. To check nobody tampered with one, you bake the recipe yourself and compare fingerprints.
+- **That check only works if the same recipe always gives the same cake** (a *reproducible build*).
+- **Most builds aren't reproducible.** Timestamps, paths, usernames, hostnames, file order, locale, timezone, CPU count and random seeds leak into the output.
+- **It's a security problem.** SolarWinds (2020) was a compromised build server. In the xz backdoor (2024), the malicious code was in the release files but not in the public source. Rebuild-and-compare catches both, but only for reproducible builds.
 
-- **Source code is the recipe and the binary is the cake.** People download cakes, not recipes. To check that a cake wasn't tampered with, you bake the recipe yourself and compare fingerprints.
-- **That check only works if the same recipe always gives the same cake.** This property is called a *reproducible build*.
-- **Most builds aren't reproducible.** Build details leak into the output:
-  - timestamps (for example, gzip headers);
-  - the build folder path;
-  - the username and hostname;
-  - file listing order;
-  - locale and timezone;
-  - CPU count;
-  - random hash seeds.
-- **This is a security problem.** SolarWinds (2020) was a compromised build server. In the xz backdoor (2024), the malicious code was in the release files but not in the public source. Independent rebuild-and-compare catches both kinds of attack, but only for reproducible builds.
-
-## Who has this problem
-
-- **Debian.** Since 9 May 2026, Debian's migration software blocks new unreproducible packages and regressions from entering *testing*. Debian 14 "forky" is the first release under this mandate.
-  - Live numbers on 2026-10-24 (tests.reproducible-builds.org, unstable/amd64): 1,148 unreproducible packages; 619 unreproducible with no identified cause.
-  - Only 9 people committed to `reproducible-notes` in the last three months.
-- **Package maintainers**, who get blocked and lack the expertise to diagnose the cause.
-- **Other ecosystems.** Arch, Fedora, openSUSE, NixOS and F-Droid all have the problem. On PyPI, only 15.4–19.1% of rebuilds are byte-identical (2026 study, "No Snake Oil").
-- **Companies shipping binaries and containers.** Under the EU Cyber Resilience Act, reporting duties started in September 2026 and full enforcement begins in December 2027.
+## Who has it
+- **Debian.**
+  - Since May 2026, unreproducible packages and regressions are blocked from migrating to testing.
+  - On Oct 25, unstable/amd64 had **1,140 unreproducible** (FTBR) packages, 429 of them with no notes at all.
+  - About 9 people actively write notes.
+- **Maintainers**, who get blocked without the expertise to diagnose the cause.
+- **Every other ecosystem:** on PyPI only 15.4–19.1% of rebuilds are byte-identical. Also Arch, Fedora, NixOS, npm, Maven, containers and firmware.
+- **Companies under the EU Cyber Resilience Act:** reporting since Sep 2026, full application Dec 2027.
 
 ## What exists vs. what we add
+See `LANDSCAPE.md`. In short:
+- **Detecting** is solved (Debian CI, rebuilderd, reprotest).
+- **Explaining where** is solved (diffoscope).
+- **Normalizing** differences away exists (strip-nondeterminism, Google OSS Rebuild "stabilizers").
+- **Diagnosing why, fixing the cause, and proving it bit-for-bit** is manual expert work. **That's SameBytes.**
 
-| Activity | Status today | Us |
-|---|---|---|
-| **Detecting** (is it reproducible?) | Solved: reprotest, diffoscope, Debian CI | We consume their published results |
-| **Fixing** (why not, and what patch fixes it?) | Manual expert work; RepFix (ICSE 2022, non-LLM) fixed 64/116 | **Our core product** |
-| **Verifying** (is the fix real?) | Manual | Automatic: two fresh sandbox builds, hash comparison, tests pass |
-
-We **make** builds reproducible. Checking is our proof step, not the product.
-
-## "Isn't this a one-time fix for ~620 packages?"
-
-No. The answer for judges has three parts:
-
-1. **It recurs.** New upstream versions and toolchain updates keep breaking reproducibility. That's why Debian blocks *regressions* specifically. 4,347 reproducibility bugs have been fixed over the years, yet about 1,100 unreproducible packages remain at any time. The monthly reports still list dozens of new fixes.
-2. **Debian is the proving ground, not the market.** It gives us a public answer key. The same problem exists in other distributions, PyPI, npm, Maven, Rust, Go, containers, firmware, and most corporate build pipelines.
-3. **Long-term product shape: a reproducibility guard**, Dependabot-style:
-   - it runs on every change or release, builds twice, and compares;
-   - on a regression, it diagnoses the cause and opens a pull request with a proven fix;
-   - it fixes shared toolchain causes once, for many packages;
-   - its verification receipts serve as audit evidence.
-
-**Pitch order:** Debian backlog = proof it works. Reproducibility guard for any team = the product.
+## Flagship result we're building toward (D-021, `FLAGSHIP_CASE.md`)
+- One bug in a shared tool (argparse-manpage: an import that always fails, so dates come out in local time) makes **13 Debian packages** unreproducible.
+- Debian's volunteers had **labelled** the cluster (`timezone_variant_in_argparse_manpage` on all 13, bug #1126092) but not fixed it: their patch is stuck (it doesn't build on Python 3.15), and upstream is still broken.
+- SameBytes traces the bytes to the exact line, fixes the tool once, proves every dependent reproducible, and catches a 14th package (`hatchling`) that regressed on Oct 23 and has no label.
+- **Because the label is public, the headline run is blind** (the catalogue entry is removed) and both runs are published (D-031).
 
 ## How it works (pipeline)
+1. **Intake and evidence.** The package's CI status and build time; the published diffoscope JSON and logs from tests.reproducible-builds.org.
+2. **Baseline twin build.** Reproduce the difference ourselves under Debian CI's exact variations, offline.
+3. **Digest and rules.** Parse the diff, drop derived differences, and run deterministic detectors (timezone-shifted dates, clock, user, home, hostname, locale, PATH, flags, ordering, randomness, archive metadata).
+4. **Investigate (Nemotron 3 Ultra, tools).** Search logs and source, attribute files to installed packages, and **run experiments** (`probe`: the same command under both environments) until the cause is confirmed. The output is a schema-validated diagnosis.
+5. **Scout (Tavily, product mode).** Existing Debian bugs, upstream fixes, and the commits that introduced the problem. This changes the plan: reuse the human patch, backport upstream, or draft an upstream PR.
+6. **Patch (Nemotron Super, tools).** Exact search-and-replace edits to the package or the toolchain package, 1 candidate per round on Docker, 2 on Sandboxes or Actions (D-037). A deterministic policy guard forbids test-skipping, file removal and hard-coded dates.
+7. **Verify.** Twin build per candidate: identical SHA-256 for every `.deb`, unchanged file list, tests pass. A remaining diff feeds the next round (max 3).
+8. **Critic (Nemotron 3 Ultra).** Root cause or workaround? It writes the maintainer explanation.
+9. **Receipt and report.** An in-toto receipt, report, bug and PR drafts, and a site card. A human reviews; nothing is auto-filed.
 
-1. **Gather evidence.** Download the published diffoscope result and both build logs from tests.reproducible-builds.org, plus the known-cause catalogue from `reproducible-notes`. No builds are needed at this stage.
-2. **Rules pre-pass.** Deterministic checks catch easy cases cheaply: gzip mtime, build path strings, `date` calls in `debian/rules`, `.a` archive member order, and so on.
-3. **Condense (Nemotron 3 Nano).** Shrink megabytes of diff to the few differences that matter.
-4. **Diagnose (Nemotron 3 Ultra + Tavily).**
-   - Ultra names the root cause (mapped to one of Debian's ~430 issue types) and the responsible file and line.
-   - Tavily checks whether upstream already fixed it and finds the right upstream tracker.
-5. **Patch (Nemotron 3 Super), as an agent loop (D-024).** Super works with tools (read file, search source, apply patch, run rebuild) under a hard per-package budget and proposes up to three candidate patches.
-6. **Verify (Token Factory Sandboxes).**
-   - For each candidate, on its own branch, build twice in fresh VMs from the same image while varying time, path, user, locale, timezone, umask and CPU count.
-   - Success means identical SHA-256 hashes, build-time tests passing, and the smallest diff winning.
-   - Staged (D-025): screen candidates with the failing variation only, stop at the first pass, then run the full variation set on the winner. The harness decides pass or fail, never the model.
-   - If no candidate passes, the remaining diff goes back to step 4. Maximum 3 rounds.
-7. **Receipt + human review.** Output a patch, a plain-English explanation, a ready-to-file bug report, and a JSON verification receipt (image UUID, operation IDs, variations, hashes, test result). A human reviews everything. Nothing is auto-filed.
+**Campaign mode:** if the cause is in a toolchain package, fix it once, inject the fix into each dependent's environment (as a file overlay, or a rebuilt `.deb` when the tool is compiled) and twin-build them all, on the laptop or on GitHub runners with build A and build B on separate machines. The verified fix becomes a reusable rule.
+**Map mode (Could, D-037):** a cheap Nemotron signature pass over all FTBR packages (Batch API) reveals other shared-cause clusters.
 
-**Campaign mode:** run the pipeline over many packages. Nano produces a signature per package, and similar signatures are clustered to find shared toolchain causes, so one fix covers N packages.
+## Model roles (D-023, D-028)
 
-## Model roles
-
-| Model | Job | Why this model |
+| Role | Model | Why |
 |---|---|---|
-| Nemotron 3 Nano 30B-A3B | Condense diffs, build cluster signatures | Cheapest (~$0.06/M input tokens), fast, good at summarizing |
-| Nemotron 3 Ultra 550B-A55B | Root-cause diagnosis | Deepest reasoning (~$1/$3 per M tokens) |
-| Nemotron 3 Super 120B-A12B | Write patches | Strong coder, ~1M token context |
+| Investigator | Nemotron 3 Ultra | Hardest reasoning: localize across packages, plan experiments |
+| Patcher | Nemotron 3 Super or 3.5 Super VL (bake-off) | Strong tool-using coder at a third of Ultra's price |
+| Critic | Nemotron 3 Ultra | Independent judgment and explanation |
+| Fast roles (scout analysis, condense, signatures) | Nemotron 3.5 Lightning or 3 Nano (bake-off) | Cheap, schema-following |
 
-We'll measure the split with an ablation (for example, Nano-only vs. Ultra for diagnosis: accuracy and cost). Confirm the exact model IDs from Token Factory's live model list.
+An ablation justifies the split: Ultra with no tools is planned; Super or the fast model as investigator and no rule hints run only if time allows (D-037).
 
 ## Tech stack
+- **Orchestrator:** Python 3.12, Typer, Rich, pydantic.
+- **LLM client:** `openai` SDK pointed at Token Factory.
+- **Build backends:** Docker (primary) and Sandboxes (accelerator, when granted).
+- **Build tools:** dpkg-buildpackage, faketime, diffoscope, reprotest (strict and bisect only).
+- **Search:** Tavily.
+- **Storage:** JSON files in `runs/`, curated into `published/`.
+- **Report:** a static site on GitHub Pages.
+- **Repo:** public, MIT.
 
-| Layer | Choice |
-|---|---|
-| Orchestrator | Python |
-| LLM calls | `openai` Python SDK pointed at the Token Factory base URL |
-| Build machines | Nebius Token Factory Sandboxes (Python SDK); fallback: local Docker (`--privileged` for disorderfs) |
-| Build tools | Debian image with `dpkg-buildpackage`, `devscripts`, `reprotest`, `diffoscope` |
-| Search | Tavily Python SDK |
-| Data | tests.reproducible-builds.org (diffs, logs); `reproducible-notes` (`issues.yml`, `packages.yml`) |
-| Storage | SQLite or JSON |
-| Report UI | Static site on GitHub Pages: one card per package (hashes before and after, cause, patch, model per step, cost) |
-| Repo | Public GitHub, MIT or Apache-2.0 license visible in About |
-| Secrets | `.env` (gitignored); never commit keys |
+## Evaluation (`BENCHMARK_PROTOCOL.md` v2)
+- **Track A: diagnosis.** Sealed set of packages tagged after the models' training cutoffs, plus an old-tag control, a memorization probe and the no-tools ablation.
+- **Track B: verified fixes.** 4 fast packages (D-037), scored objectively by the twin build.
+- **Track C: campaign.** Flagship cluster members proven, out of those attempted.
 
-## Evaluation (the benchmark)
-
-> Full rules: `BENCHMARK_PROTOCOL.md`. The answers are sealed and the agent can't reach them. It works from pre-fix source versions, has no Debian notes, no network, and no Tavily for the headline numbers. There's a dev/test split with prompts frozen before the run, a memorization probe, and a single run with all failures published.
-
-- **Diagnosis set (D-023).** Packages still unreproducible whose cause note was added after the models' training cutoffs. Their current source is pre-fix, so score cause and file against the note with no builds. Verified fix rate is measured on a subsample. Known-fix packages are optional.
-- **Metrics:**
-  - root-cause top-1 and top-3 accuracy;
-  - file localization accuracy;
-  - verified fix rate;
-  - dollars per fix and minutes per fix.
-- **Baseline:** RepFix's 64/116 (55%). State honestly that the datasets differ.
-- **Unknown-cause set.** Run on a sample of the ~619 unexplained packages. Every success is new work.
-
-## Success criteria for the hackathon
-
+## Success criteria
+- **Added by the review (D-031 to D-036), prioritised by D-037:** the blind flagship run (Should, first), keyless `samebytes replay` of a recorded run (Should), a GitHub Actions verification workflow (Should, after the campaign), the README "For judges" table (Must) and a `/judges` page (Could).
 - **Must:**
-  - Gate 1 passed by Mon 26: one package fixed end-to-end with a receipt (D-021);
-  - at least 5 packages fixed end-to-end with byte-identical verification (D-025; report attempted vs verified);
-  - a benchmark table;
-  - the report site;
-  - a video under 3 minutes;
-  - a README and limitations section.
-- **Should:**
-  - the model ablation;
-  - Tavily upstream check;
-  - clustering on the unexplained set;
-  - 2–3 human-reviewed fixes submitted with AI-assistance disclosure.
-- **Stretch:**
-  - 10 packages fixed end-to-end;
-  - a minimal GitHub Action that runs the two-build check on a sample project (makes the "guard" story concrete);
-  - batch-API campaign.
+  - flagship campaign with ≥ 9 verified receipts;
+  - an end-to-end `samebytes fix` on the flagship;
+  - report site, README with limitations, video ≤ 3:00, feedback section.
+- **Should:** Track A and B tables; Tavily scout; batch map; upstream contribution (with your approval).
+- **Could:** Sandboxes backend; strict profile; signed receipts; mini GitHub Action; hatchling verified.
 
-## Known limitations (publish these)
+## Known limitations (keep current; full list in `RISKS_AND_BLOCKERS.md`)
+- Mirrors Debian CI's variations **except the kernel**, which CI varies on amd64 and a container can't. Build path and file order are not varied by CI today and only by our optional strict profile.
+- Time variation via libfaketime; a few packages need it off, and their grade says so.
+- Track A ground truth is volunteer tags, which may be stale or coarse.
+- Not yet validated against reproduce.debian.net's real-archive rebuilds.
+- Long builds are skipped; humans review everything before it goes upstream.
 
-- We won't fix every package; the success rate on unexplained cases will be modest.
-- Long-building packages are skipped.
-- Reproducibility makes tampering detectable through independent rebuilds. It does not show that software is secure or free of malicious code. Our receipts show identical output under the tested variations only (D-022). Locally the user_group variation is excluded.
-- A fix can be reproducible but not ideal, which is why a human reviews it.
-- The file-ordering variation may not run in Sandboxes (FUSE).
-- We focus on variation testing (tests.reproducible-builds.org), not every real-world rebuild failure (reproduce.debian.net).
-- We do no auto-filing. This follows Debian's August 2026 general resolution: AI use is allowed, the human submitter is accountable, and disclosure is encouraged. The community is split roughly 64/36.
+## Team split
+- **Person A ("kitchen"):** harness, backends, receipts, campaign, site deploy.
+- **Person B ("brain"):** LLM client, digest, rules, agents, scout, ledger, benchmark, site content.
 
-## Team split (proposed)
+Interfaces are frozen on Day 0 (`BUILD_PLAN.md` §3).
 
-- **Person A, "the kitchen":**
-  - sandbox setup and Debian build image;
-  - two-build harness and variations;
-  - hash comparison, tests, verification receipt.
-- **Person B, "the brain":**
-  - evidence download and rules pre-pass;
-  - Nano, Ultra and Super prompts and the retry loop;
-  - Tavily check;
-  - benchmark scoring;
-  - report site.
-- **Both:** video, write-up, feedback section.
-
-## Timeline (deadline Fri 30 Oct, 10:00 PDT = 22:30 IST)
-
-| Day | Goal |
-|---|---|
-| Sat 24 | Accounts and credits; request Sandboxes access; package list; download evidence; test one sandbox build and `/dev/fuse` |
-| Sun 25 | Verification harness working (build twice, compare, tests) |
-| Mon 26 | **Gate 1 first (one full fix with receipt)**, then the agent loop: rules, Nano, Ultra (read tools), Super (edit tools), staged verification |
-| Tue 27 | Gate 3 (about 5 fixes), then benchmark + ablation; Tavily; clustering and campaign only if Gate 3 is done; send 1-2 reviewed patches to users (D-026) |
-| Wed 28 | **Feature freeze.** Report site, README, limitations, human review of top fixes |
-| Thu 29 | Video, Devpost write-up, feedback; submit a draft |
-| Fri 30 | Buffer only; final submit well before 22:30 IST |
-
-**Cut first if behind:** CI regression check, batch campaign, file-order variation. **Never cut:** verified fixes, the benchmark table, the video.
+## Timeline
+See `BUILD_PLAN.md` §4.
+- **Gates:** G0 Sun 23:30, G1 Mon 23:30, G2 Tue 23:30.
+- **Feature freeze:** Wed 23:59.
+- **Draft submit:** Thu.
+- **Final submit:** Fri 18:00 IST (deadline 22:30 IST).
 
 ## 30-second pitch
-
-"Build the same code twice and you usually get different files, because things like the time and folder name sneak in. That breaks the main way to check software wasn't tampered with: rebuild and compare fingerprints. Debian now blocks packages with this problem, and only a handful of volunteers can fix them. SameBytes reads the evidence, finds the cause, writes the fix, and verifies it by building on two fresh Nebius sandboxes and showing identical fingerprints. Three NVIDIA Nemotron models share the work: Nano summarizes, Ultra diagnoses, Super writes the code."
+"Build the same code twice and you usually get different files, because things like the time and the timezone sneak in. That breaks the main way to check software wasn't tampered with. Debian now blocks packages with this problem, and over eleven hundred are failing. SameBytes finds the cause, fixes it, and proves it with byte-identical builds. On Debian it traced 13 broken packages to one silent bug in a shared tool, fixed it once and proved all 13. It runs on NVIDIA Nemotron through Nebius Token Factory: Ultra investigates, Super writes the fix."

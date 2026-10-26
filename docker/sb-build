@@ -21,7 +21,7 @@ B_ENV=(TZ=/usr/share/zoneinfo/Etc/GMT-14 LANG=et_EE.UTF-8 LANGUAGE=et_EE:et LC_A
        "CAPTURE_ENVIRONMENT=I capture the environment"
        HOME=/nonexistent/second-build USER=pbuilder2 LOGNAME=pbuilder2
        DEB_BUILD_OPTIONS="nocheck parallel=$(( N > 1 ? N - 1 : 1 ))"
-       FAKETIME_DONT_FAKE_MONOTONIC=1)
+       FAKETIME_DONT_FAKE_MONOTONIC=1 NO_FAKE_STAT=1)
 
 if [ "$ROLE" = A ] || [ "$PROFILE" = none ]; then
   ID=1111; NICE=10; UM=0022; SH=dash; ENVV=("${A_ENV[@]}"); TW=()
